@@ -1,0 +1,63 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import classification_report, accuracy_score
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.impute import SimpleImputer
+
+# Initialize the imputer with a strategy (e.g., mean, median, or constant)
+imputer = SimpleImputer(strategy='mean')
+
+# Load the dataset
+data = pd.read_csv(r"C:\Users\racha\Downloads\HepatitisCdata.csv")
+
+# Identify the data type of the 'Sex' column
+sex_dtype = data['Sex'].dtype
+
+# Identify categorical columns with the same data type as 'Sex'
+categorical_cols = data.select_dtypes(include=[sex_dtype]).columns.tolist()
+
+# Apply one-hot encoding to convert categorical variables to numerical format
+ct = ColumnTransformer(transformers=[('encoder', OneHotEncoder(), categorical_cols)],
+                       remainder='passthrough')
+data_encoded = ct.fit_transform(data)
+
+# Select features
+feature_names_out = ct.get_feature_names_out()
+X = pd.DataFrame(data_encoded, columns=feature_names_out)
+
+# Drop the target variable from features
+columns_to_drop = ['encoder__Category_0=Blood Donor', 'encoder__Category_0s=suspect Blood Donor',
+                   'encoder__Category_1=Hepatitis', 'encoder__Category_2=Fibrosis',
+                   'encoder__Category_3=Cirrhosis']
+X = X.drop(columns=columns_to_drop, axis=1)
+
+# Assign the target variable 'HepatitisC' to y
+y = data['Category']
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Fit and transform the imputer on the training data
+X_train_imputed = imputer.fit_transform(X_train)
+
+# Transform the test data using the same imputer
+X_test_imputed = imputer.transform(X_test)
+
+
+# Initialize the KNN classifier
+knn_classifier = KNeighborsClassifier(n_neighbors=5)  # You can adjust the number of neighbors
+
+# Train the model
+knn_classifier.fit(X_train_imputed, y_train)
+
+# Make predictions on the test set
+y_pred = knn_classifier.predict(X_test_imputed)
+
+# Evaluate the model
+accuracy = accuracy_score(y_test, y_pred)
+classification_rep = classification_report(y_test, y_pred)
+
+print("Accuracy:", accuracy)
+print("\nClassification Report:\n", classification_rep)
